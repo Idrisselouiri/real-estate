@@ -1,101 +1,125 @@
 "use client";
 
-import React, { useState } from "react";
-import { AiFillGoogleCircle } from "react-icons/ai";
+import { useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { FaGoogle } from "react-icons/fa";
 
-const Login = () => {
+export default function Signin() {
   const [formData, setFormData] = useState({});
+  const [errorMessage, setErrorMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value.trim() });
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     if (!formData.email || !formData.password) {
-      toast.error("Please fill out all fields.");
+      return setErrorMessage("Please fill out all fields.");
     }
-    await signIn("credentials", {
-      email: formData.email,
-      password: formData.password,
-      callbackUrl: "/",
-    });
     setLoading(true);
+    const savingPromise = new Promise(async (resolve, reject) => {
+      await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        callbackUrl: "/",
+      });
+      await toast.promise(savingPromise, {
+        loading: "Saving...",
+        success: "Login Successfully!",
+        error: "Error",
+      });
+      resolve();
+      setLoading(false);
+    });
   };
   return (
-    <div className="min-h-screen mt-20">
-      <div className="flex p-3 max-w-3xl mx-auto flex-col md:flex-row md:items-center gap-5">
-        {/* left */}
-        <div className="flex-1">
-          <Link href={"/"} className="font-bold dark:text-white text-4xl">
-            <span className="px-2 py-1 bg-emerald-500 rounded-lg text-white">
-              Sahand's
-            </span>
-            Blog
-          </Link>
-          <p className="text-sm mt-5">
-            This is a demo project. You can sign up with your email and password
-            or with Google.
-          </p>
-        </div>
-        {/* right */}
-
-        <div className="flex-1">
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div className="flex flex-col">
-              <label>Your email</label>
+    <div className="w-full h-screen flex items-start ">
+      <div className="relative w-1/2 h-full flex flex-col hidden lg:block">
+        <img
+          src="https://firebasestorage.googleapis.com/v0/b/next-real-estate-c2ab0.appspot.com/o/1716129425931pexels-sebastians-731082.jpg?alt=media&token=eb9cec7e-0130-4b53-8551-7707dc8b322e"
+          className="w-full h-full object-cover "
+          alt=""
+        />
+      </div>
+      <div className="lg:w-1/2 w-[90%] sm:w-[70%] mx-auto lg:mx-0 h-full bg-[#f5f5f5] flex flex-col p-10 lg:p-20 justify-between lg:items-start items-center border">
+        <h1 className="text-base text-[#060606] font-semibold">
+          Interactive Brand
+        </h1>
+        <div className="w-full flex flex-col max-w-[500px]">
+          <div className="w-full flex flex-col mb-2">
+            <h3 className="text-3xl font-semibold mb-2">Login</h3>
+            <p className="text-base mb-2">
+              Welcome Back! Please enter your details
+            </p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="w-full flex flex-col">
               <input
                 type="email"
+                className="w-full my-2 text-black border-b border-black outline-none focus:outline-none py-2 bg-transparent"
+                onChange={handleChange}
                 placeholder="name@company.com"
                 id="email"
-                onChange={handleChange}
-                className="p-2 border-[3px] border-[lightgray] bg-slate-100 outline-none rounded"
               />
-            </div>
-            <div className="flex flex-col">
-              <label>Your password</label>
               <input
                 type="password"
                 placeholder="Password"
-                id="password"
+                className="w-full my-2 text-black border-b border-black outline-none focus:outline-none py-2 bg-transparent"
                 onChange={handleChange}
-                className="p-2 border-[3px] border-[lightgray] bg-slate-100 outline-none rounded"
+                id="password"
               />
             </div>
-            <button
-              className="bg-emerald-500 px-5 py-2 rounded-lg font-bold text-white w-full  shadow-emerald-300 shadow-lg"
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="pl-3">Loading...</span>
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="w-full flex items-center justify-center py-2 bg-transparent border rounded-lg text-black shadow-slate-300 shadow-lg"
-            >
-              <AiFillGoogleCircle className="w-6 h-6 mr-2" />
-              Continue with Google
-            </button>
+            <div className="w-full flex justify-between items-center">
+              <div className="w-full flex">
+                <input type="checkbox" className="w-4 h-4 mr-2" />
+                <p className="text-sm">Remember Me</p>
+              </div>
+              <p className="text-sm cursor-pointer underline underline-offset-2 font-medium whitespace-nowrap">
+                Forgot Password
+              </p>
+            </div>
+            <div className="flex w-full flex-col my-4">
+              <button
+                type="submit"
+                className="w-full bg-[#060606] rounded-md text-center flex items-center justify-center p-4 text-white my-2"
+              >
+                {loading ? (
+                  <>
+                    <span className="pl-3">Loading...</span>
+                  </>
+                ) : (
+                  "Log In"
+                )}
+              </button>
+            </div>
           </form>
-          <div className="flex gap-2 text-sm mt-5">
-            <span>I Dont Have an account?</span>
-            <Link href={"/signin"} className="text-blue-500">
-              Sign In
-            </Link>
+          <div className="w-full flex items-center justify-center relative py-2">
+            <div className="w-full h-[1px] bg-black/40"></div>
+            <p className="absolute text-black/80 bg-[#f5f5f5] text-lg">Or</p>
           </div>
+          <button
+            onClick={() => signIn("google", { callbackUrl: "/" })}
+            type="button"
+            className="w-full bg-white rounded-md text-center flex items-center justify-center p-4 text-black my-2"
+          >
+            <FaGoogle />
+            Sign In With Google
+          </button>
+        </div>
+        {errorMessage && <p className="text-red-500 mt-5">{errorMessage}</p>}
+        <div className="w-full flex items-center justify-center">
+          <Link href={"/signin"} className="text-sm font-normal text-[#060606]">
+            Dont have a account?{" "}
+            <span className="font-semibold underline underline-offset-2">
+              Sign In free
+            </span>{" "}
+          </Link>
         </div>
       </div>
     </div>
   );
-};
-export default Login;
+}

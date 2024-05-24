@@ -12,7 +12,7 @@ export async function POST(request) {
     email === "" ||
     password === ""
   ) {
-    return Response.json(
+    return Resposnse.json(
       { message: "All fields are required", success: false },
       { status: 401 }
     );

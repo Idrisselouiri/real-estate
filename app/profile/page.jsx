@@ -1,126 +1,63 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
-import { CircularProgressbar } from "react-circular-progressbar";
-import "react-circular-progressbar/dist/styles.css";
+import { useEffect, useRef, useState } from "react";
 import {
   getDownloadURL,
   getStorage,
   ref,
   uploadBytesResumable,
 } from "firebase/storage";
-import { redirect } from "next/navigation";
+import { CircularProgressbar } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
+import { HiOutlineExclamationCircle } from "react-icons/hi";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { app } from "@app/firebase";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import toast from "react-hot-toast";
+import { app } from "@app/firebase";
 
-const Profile = () => {
+export default function Profile() {
   const session = useSession();
   const { status } = session;
-  const [userName, setUserName] = useState("");
+  const [name, setName] = useState(null);
+  const [email, setEmail] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [profileFetched, setProfileFetched] = useState(false);
   const [image, setImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imageFileUrl, setImageFileUrl] = useState(null);
   const [imageFileUploadProgress, setImageFileUploadProgress] = useState(null);
   const [imageFileUploadError, setImageFileUploadError] = useState(null);
   const [imageFileUploading, setImageFileUploading] = useState(false);
-  const filePickerRef = useRef();
+  const [updateUserError, setUpdateUserError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [userData, setUserData] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [profileFetched, setProfileFetched] = useState(false);
+  const [showListingsError, setShowListingsError] = useState(false);
+  const [userListings, setUserListings] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const filePickerRef = useRef();
   const router = useRouter();
+  async function logout() {
+    await signOut();
+    router.push("/");
+  }
   useEffect(() => {
     if (status === "authenticated") {
       const getUser = async () => {
         const res = await fetch("/api/profile");
         const data = await res.json();
         if (res.ok) {
-          setUserData(data);
-          setIsAdmin(data.isAdmin);
+          setName(data.name);
+          setEmail(data.email);
+          setImage(data.image);
+          setUserId(data._id);
           setProfileFetched(true);
         }
       };
       getUser();
     }
   }, [session, status]);
-
-  const handleSubmit = async (ev) => {
-    ev.preventDefault();
-
-    const savingPromise = new Promise(async (resolve, reject) => {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/profile", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: userName, image }),
-        });
-        const data = await res.json();
-        if (data.success === false) {
-          reject();
-          setLoading(false);
-        }
-        if (res.ok) {
-          resolve();
-          setLoading(false);
-        }
-      } catch (error) {
-        reject();
-        setLoading(false);
-      }
-    });
-    await toast.promise(savingPromise, {
-      loading: "Saving...",
-      success: "Profile saved!",
-      error: "Error",
-    });
-  };
-
-  const handleDeleteUser = async () => {
-    setShowModal(false);
-    const savingPromise = new Promise(async (resolve, reject) => {
-      try {
-        dispatch(deleteUserStart());
-        const res = await fetch("/api/profile", {
-          method: "DELETE",
-        });
-        const data = await res.json();
-        if (data.success === false) {
-          reject();
-        }
-        if (res.ok) {
-          resolve();
-        }
-      } catch (error) {
-        reject();
-      }
-    });
-    await toast.promise(savingPromise, {
-      loading: "Saving...",
-      success: "User Deleted!",
-      error: "Error",
-    });
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const toggleModal = () => {
-    setShowModal(!showModal);
-  };
-
-  async function logout() {
-    await signOut();
-    router.push("/");
-  }
-
+  console.log(name);
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -133,6 +70,7 @@ const Profile = () => {
       uploadImage();
     }
   }, [imageFile]);
+
   const uploadImage = async () => {
     setImageFileUploading(true);
     setImageFileUploadError(null);
@@ -166,12 +104,110 @@ const Profile = () => {
       }
     );
   };
-  if (status === "loading" || !profileFetched) {
-    return (
-      <p className="w-full text-2xl font-semibold text-center">Loading...</p>
-    );
-  }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUpdateUserError(null);
+    setLoading(true);
+
+    if (imageFileUploading) {
+      setUpdateUserError("Please wait for image to upload");
+      return;
+    }
+    const savingPromise = new Promise(async (resolve, reject) => {
+      try {
+        const res = await fetch(`/api/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name, image }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setUpdateUserError(data.message);
+          reject();
+          setLoading(false);
+        } else {
+          setLoading(false);
+          resolve();
+        }
+      } catch (error) {
+        setLoading(false);
+        setUpdateUserError(error.message);
+        reject();
+      }
+      await toast.promise(savingPromise, {
+        loading: "Saving...",
+        success: "User's profile updated successfully!",
+        error: "Error",
+      });
+    });
+  };
+  const handleDeleteUser = async () => {
+    setShowModal(false);
+    const savingPromise = new Promise(async (resolve, reject) => {
+      try {
+        const res = await fetch("/api/profile", {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          resolve();
+          logout();
+          router.push("/signin");
+        }
+      } catch (error) {
+        reject();
+      }
+      await toast.promise(savingPromise, {
+        loading: "Saving...",
+        success: "User's profile deleted successfully!",
+        error: "Error",
+      });
+    });
+  };
+  const handleShowListings = async () => {
+    try {
+      setShowListingsError(false);
+      const res = await fetch(`/api/listing?userId=${userId}`);
+      const data = await res.json();
+      if (data.success === false) {
+        setShowListingsError(true);
+
+        return;
+      }
+      if (res.ok) {
+        setUserListings(data.listings);
+      }
+    } catch (error) {
+      setShowListingsError(true);
+    }
+  };
+
+  const handleListingDelete = async (listingId) => {
+    try {
+      const res = await fetch(`/api/listing/${listingId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success === false) {
+        console.log(data.message);
+        return;
+      }
+      if (res.ok) {
+        setUserListings((prev) =>
+          prev.filter((listing) => listing._id !== listingId)
+        );
+        toast.success("Listing User Deleted Successfully");
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+  if (status === "loading" || !profileFetched) {
+    return <p>Loading...</p>;
+  }
+  console.log(status);
   if (status === "unauthenticated") {
     return redirect("/login");
   }
@@ -213,7 +249,7 @@ const Profile = () => {
             />
           )}
           <img
-            src={imageFileUrl || userData?.image}
+            src={imageFileUrl || image}
             alt="user"
             className={`rounded-full w-full h-full object-cover border-8 border-[lightgray] ${
               imageFileUploadProgress &&
@@ -223,109 +259,109 @@ const Profile = () => {
           />
         </div>
         {imageFileUploadError && (
-          <span color="failure">{imageFileUploadError}</span>
+          <span className="text-red-700 text-sm self-center">
+            {imageFileUploadError}
+          </span>
         )}
         <input
           type="text"
           id="name"
+          className="border p-3 rounded-lg"
           placeholder="username"
-          defaultValue={userData?.name}
-          onChange={(ev) => setUserName(ev.target.value)}
-          className="p-2 border-[3px] border-[lightgray] bg-slate-100 outline-none rounded"
+          defaultValue={name}
+          onChange={(e) => setName(e.target.value)}
         />
         <input
           type="email"
           id="email"
+          className="border p-3 rounded-lg"
           placeholder="email"
-          onChange={(ev) => setUserEmail(ev.target.value)}
-          defaultValue={userData?.email}
-          className="p-2 border-[3px] border-[lightgray] bg-slate-100 outline-none rounded"
+          defaultValue={email}
+          disabled
         />
         <input
           type="password"
-          disabled={true}
           id="password"
+          className="border p-3 rounded-lg"
           placeholder="password"
-          className="p-2 border-[3px] border-[lightgray] bg-slate-100 outline-none rounded"
+          disabled
         />
         <button
           type="submit"
           className="bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80"
-          disabled={imageFileUploading || loading}
+          disabled={loading || imageFileUploading}
         >
           {loading ? "Loading..." : "Update"}
         </button>
-        {isAdmin && (
-          <Link
-            className="bg-green-700 text-white p-3 rounded-lg uppercase text-center hover:opacity-95"
-            href={"/createListing"}
+        <Link href={"/createListing"}>
+          <button
+            type="button"
+            className="bg-green-700 text-white p-3 rounded-lg uppercase text-center hover:opacity-95 w-full"
           >
-            Create Listing
-          </Link>
-        )}
+            Create a list
+          </button>
+        </Link>
       </form>
       <div className="text-red-500 flex justify-between mt-5">
+        <span onClick={handleDeleteUser} className="cursor-pointer">
+          Delete Account
+        </span>
         <span onClick={logout} className="cursor-pointer">
           Sign Out
         </span>
-        <span className="cursor-pointer" onClick={toggleModal}>
-          Delete Account
+      </div>
+
+      {updateUserError && (
+        <span className="text-red-700 text-sm self-center mt-5">
+          {updateUserError}
         </span>
-        {showModal && (
-          <>
-            <div className="fixed inset-0 z-10 bg-gray-300/50"></div>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-              <div className="mx-auto w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-sm">
-                <div className="relative p-5">
-                  <div className="text-center">
-                    <div className="mx-auto mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-500">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth="1.5"
-                        stroke="currentColor"
-                        className="h-6 w-6"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        Delete user
-                      </h3>
-                      <div className="mt-2 text-sm text-gray-500 max-w-sm">
-                        Are you sure you want to delete this{" "}
-                        {userData.name.split(" ")[0]} user?
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-5 flex justify-end gap-3">
-                    <button
-                      onClick={closeModal}
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-100 focus:ring focus:ring-gray-100 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-50 disabled:text-gray-400"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="flex-1 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-center text-sm font-medium text-white shadow-sm transition-all hover:border-red-700 hover:bg-red-700 focus:ring focus:ring-red-200 disabled:cursor-not-allowed disabled:border-red-300 disabled:bg-red-300"
-                      onClick={handleDeleteUser}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
+      )}
+      <button onClick={handleShowListings} className="text-green-700 w-full">
+        Show Listings
+      </button>
+      <p className="text-red-700 mt-5">
+        {showListingsError ? "Error showing listings" : ""}
+      </p>
+
+      {userListings && userListings.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h1 className="text-center mt-7 text-2xl font-semibold">
+            Your Listings
+          </h1>
+          {userListings.map((listing) => (
+            <div
+              key={listing._id}
+              className="border rounded-lg p-3 flex justify-between items-center gap-4"
+            >
+              <Link href={`/listing/${listing.slug}`}>
+                <img
+                  src={listing.imageUrls[0]}
+                  alt="listing cover"
+                  className="h-16 w-16 object-contain"
+                />
+              </Link>
+              <Link
+                className="text-slate-700 font-semibold  hover:underline truncate flex-1"
+                href={`/listing/${listing.slug}`}
+              >
+                <p>{listing.name}</p>
+              </Link>
+
+              <div className="flex flex-col item-center">
+                <button
+                  onClick={() => handleListingDelete(listing._id)}
+                  className="text-red-700 uppercase"
+                >
+                  Delete
+                </button>
+                <Link href={`/updateListing/${listing._id}`}>
+                  <button className="text-green-700 uppercase">Edit</button>
+                </Link>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
-
-export default Profile;
+}

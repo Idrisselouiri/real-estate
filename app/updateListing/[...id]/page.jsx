@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "react-quill/dist/quill.snow.css";
 import {
   getDownloadURL,
@@ -8,13 +8,14 @@ import {
   ref,
   uploadBytesResumable,
 } from "firebase/storage";
-import { app } from "../firebase";
+import { CircularProgressbar } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { User } from "@components/User";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { app } from "@app/firebase";
 
-export default function CreateListing() {
+export default function UpdateListing() {
   const { data: userData } = User();
   const router = useRouter();
   const [files, setFiles] = useState([]);
@@ -32,10 +33,26 @@ export default function CreateListing() {
     parking: false,
     furnished: false,
   });
+  const [imageUploadProgress, setImageUploadProgress] = useState(null);
   const [imageUploadError, setImageUploadError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const params = useParams();
+  useEffect(() => {
+    const fetchListing = async () => {
+      const res = await fetch(`/api/listing/${params.id}`);
+      const data = await res.json();
+      if (data.success === false) {
+        console.log(data.message);
+        return;
+      }
+      setFormData(data);
+    };
+
+    fetchListing();
+  }, []);
+
   const handleImageSubmit = (e) => {
     if (files.length > 0 && files.length + formData.imageUrls.length < 7) {
       setUploading(true);
@@ -75,13 +92,16 @@ export default function CreateListing() {
         (snapshot) => {
           const progress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setImageUploadProgress(progress.toFixed(0));
         },
         (error) => {
           reject(error);
+          setImageUploadProgress(null);
         },
         () => {
           getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
             resolve(downloadURL);
+            setImageUploadProgress(null);
           });
         }
       );
@@ -136,8 +156,8 @@ export default function CreateListing() {
           return setError("Discount price must be lower than regular price");
         setLoading(true);
         setError(false);
-        const res = await fetch("/api/listing", {
-          method: "POST",
+        const res = await fetch(`/api/listing/${params.id}`, {
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
@@ -151,7 +171,7 @@ export default function CreateListing() {
         }
         if (res.ok) {
           resolve();
-          router.push(`/listing/${data.slug}`);
+          router.push("/");
         }
       } catch (error) {
         setError(error.message);
@@ -176,9 +196,9 @@ export default function CreateListing() {
             type="text"
             placeholder="name"
             id="name"
-            className="border p-3 rounded-lg"
             value={formData.name}
             onChange={handleChange}
+            className="border p-3 rounded-lg"
           />
           <textarea
             type="text"
@@ -335,7 +355,7 @@ export default function CreateListing() {
               onClick={handleImageSubmit}
               className="p-3 text-green-700 border border-green-700 rounded uppercase hover:shadow-lg disabled:opacity-80"
             >
-              {uploading ? "Creating..." : "Create"}
+              {uploading ? "Uploading..." : "Upload"}
             </button>
           </div>
           <p className="text-red-700 text-sm">

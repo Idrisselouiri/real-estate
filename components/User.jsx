@@ -16,6 +16,7 @@ export function User() {
         const data = await res.json();
         if (res.ok) {
           setData(data);
+          console.log(data);
           setLoading(false);
         }
       };

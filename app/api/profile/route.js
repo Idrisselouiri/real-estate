@@ -59,15 +59,25 @@ export async function PUT(request) {
   }
 }
 export async function DELETE(request) {
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.userEmail;
-  if (!email) {
-    return Response.json({});
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.searchParams);
+  const _id = searchParams.get("_id");
+
+  let filterUser = {};
+  if (_id) {
+    filterUser = { _id };
+  } else {
+    const session = await getServerSession(authOptions);
+    const email = session?.user?.email;
+    if (!email) {
+      return Response.json({});
+    }
+    filterUser = { email };
   }
 
   try {
     await mongooseConnect();
-    await User.findOneAndDelete({ email });
+    await User.findOneAndDelete(filterUser);
     return Response.json(
       { message: "Deleted  Successfull", success: true },
       { status: 200 }
@@ -81,11 +91,12 @@ export async function DELETE(request) {
 }
 export async function GET(request) {
   const session = await getServerSession(authOptions);
+  console.log(session);
   const email = session?.user?.email;
   if (!email) {
     return Response.json({});
   }
-
+  console.log(email);
   try {
     await mongooseConnect();
     const user = await User.findOne({ email }).lean();
