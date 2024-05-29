@@ -8,13 +8,12 @@ export default function Header() {
   const session = useSession();
   const { status } = session;
   const { data: userData } = User();
-  console.log(userData);
   return (
     <header className="py-6  border-b">
       <div className="w-[90%] mx-auto flex justify-between items-center">
         <Link href="/">
           <h1 className="font-bold text-sm sm:text-xl flex flex-wrap">
-            <span className="text-slate-500">Sahand</span>
+            <span className="text-slate-500">Idriss</span>
             <span className="text-slate-700">Estate</span>
           </h1>
         </Link>
